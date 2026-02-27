@@ -27,11 +27,33 @@
   {% set _dummy = execution_config.update(config.get('execution_config', {})) %}
   {% set upgrade_mode = config.get('upgrade_mode', 'stateless') %}
   {% set job_state = config.get('job_state', 'running') %}
+  {% set statement_set_group = config.get('statement_set_group', none) %}
+  {% set statement_set_leader = config.get('statement_set_leader', false) %}
 
   {{ sql_header if sql_header is not none }}
-  /** upgrade_mode('{{upgrade_mode}}') */ /** job_state('{{job_state}}') */
+  /** upgrade_mode('{{upgrade_mode}}') */ /** job_state('{{job_state}}') */{% if statement_set_group is not none %} /** statement_set_group('{{statement_set_group}}') */ /** statement_set_leader('{{statement_set_leader}}') */{% endif %}
   {% if execution_config %}/** execution_config('{% for cfg_name in execution_config %}{{cfg_name}}={{execution_config[cfg_name]}}{% if not loop.last %};{% endif %}{% endfor %}') */{% endif %}
   /** drop_statement('drop {% if temporary: -%}temporary {%- endif %}table if exists `{{ this.render() }}`') */
+  {% if statement_set_group is not none %}
+  {% set model_columns = model.columns.values() if model is defined else [] %}
+  /** statement_set_create */
+  create {% if temporary: -%}temporary {%- endif %}table
+    {{ this.render() }}
+    {% if type %}/** mode('{{type}}')*/{% endif %}
+  (
+    {% for column in model_columns -%}
+      `{{ column.name }}` {% if column.data_type | lower == 'text' %}STRING{% else %}{{ column.data_type }}{% endif %}{% if not loop.last %},{% endif %}
+    {%- endfor %}
+  )
+  with (
+    {% for property_name in connector_properties %} '{{ property_name }}' = '{{ connector_properties[property_name] }}'{% if not loop.last %},{% endif %}
+    {% endfor %}
+  );
+  /** statement_set_insert */
+  insert into {{ this.render() }} (
+    {{ sql }}
+  );
+  {% else %}
   create {% if temporary: -%}temporary {%- endif %}table
     {{ this.render() }}
     {% if type %}/** mode('{{type}}')*/{% endif %}
@@ -42,4 +64,5 @@
   as (
     {{ sql }}
   );
+  {% endif %}
 {%- endmacro %}
