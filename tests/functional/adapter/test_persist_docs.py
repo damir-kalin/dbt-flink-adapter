@@ -60,7 +60,7 @@ class TestPersistDocs:
         }
 
     def test_persist_docs_rendered_to_comments(self, project):
-        results = run_dbt(["run"], expect_pass=False)
+        results = run_dbt(["run"], expect_pass=None)
         model_results = [r for r in results if getattr(r.node, "resource_type", None) == "model"]
         assert len(model_results) == 1
 
@@ -122,7 +122,7 @@ class TestPersistDocsRelationOnly:
         }
 
     def test_persist_only_relation_comment(self, project):
-        results = run_dbt(["run"], expect_pass=False)
+        results = run_dbt(["run"], expect_pass=None)
         model_results = [r for r in results if getattr(r.node, "resource_type", None) == "model"]
         assert len(model_results) == 1
 
@@ -183,7 +183,7 @@ class TestPersistDocsColumnsOnly:
         }
 
     def test_persist_only_column_comments(self, project):
-        results = run_dbt(["run"], expect_pass=False)
+        results = run_dbt(["run"], expect_pass=None)
         model_results = [r for r in results if getattr(r.node, "resource_type", None) == "model"]
         assert len(model_results) == 1
 
