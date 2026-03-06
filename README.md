@@ -213,6 +213,37 @@ Run grouped models together:
 dbt run --select orders_sink payments_sink
 ```
 
+#### Persist docs to Flink comments
+
+You can persist model and column descriptions as Flink `COMMENT` metadata:
+
+`dbt_project.yml`
+
+```yaml
+models:
+  example1:
+    +persist_docs:
+      relation: true
+      columns: true
+```
+
+`models.yml`
+
+```yaml
+models:
+  - name: orders_sink
+    description: "Orders sink table"
+    columns:
+      - name: id
+        data_type: STRING
+        description: "Business order identifier"
+      - name: payload
+        data_type: STRING
+        description: "JSON payload from source stream"
+```
+
+`dbt-flink-adapter` renders these descriptions into table/column `COMMENT` clauses during table creation.
+
 #### Example
 
 `models.yml`

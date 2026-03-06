@@ -23,7 +23,11 @@ class TestSourceTablesGeneration:
         return {
             "name": "example",
             "models": {"+materialized": "view"},
-            "on-run-start": ["{{ create_sources() }}"],
+            "on-run-start": [
+                "drop view if exists `my_model`",
+                "drop table if exists `my_model`",
+                "{{ create_sources() }}",
+            ],
         }
 
     # everything that goes in the "models" directory

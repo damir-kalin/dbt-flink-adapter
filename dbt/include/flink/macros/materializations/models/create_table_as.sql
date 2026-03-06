@@ -29,22 +29,30 @@
   {% set job_state = config.get('job_state', 'running') %}
   {% set statement_set_group = config.get('statement_set_group', none) %}
   {% set statement_set_leader = config.get('statement_set_leader', false) %}
+  {% set persist_relation_docs = config.persist_relation_docs() %}
+  {% set persist_column_docs = config.persist_column_docs() %}
+  {% set model_columns = model.columns.values() if model is defined else [] %}
+  {% set relation_comment = none %}
+  {% if persist_relation_docs and model is defined and model.description %}
+    {% set relation_comment = model.description | replace("'", "''") %}
+  {% endif %}
 
   {{ sql_header if sql_header is not none }}
   /** upgrade_mode('{{upgrade_mode}}') */ /** job_state('{{job_state}}') */{% if statement_set_group is not none %} /** statement_set_group('{{statement_set_group}}') */ /** statement_set_leader('{{statement_set_leader}}') */{% endif %}
   {% if execution_config %}/** execution_config('{% for cfg_name in execution_config %}{{cfg_name}}={{execution_config[cfg_name]}}{% if not loop.last %};{% endif %}{% endfor %}') */{% endif %}
   /** drop_statement('drop {% if temporary: -%}temporary {%- endif %}table if exists `{{ this.render() }}`') */
   {% if statement_set_group is not none %}
-  {% set model_columns = model.columns.values() if model is defined else [] %}
   /** statement_set_create */
   create {% if temporary: -%}temporary {%- endif %}table
     {{ this.render() }}
     {% if type %}/** mode('{{type}}')*/{% endif %}
   (
     {% for column in model_columns -%}
-      `{{ column.name }}` {% if column.data_type | lower == 'text' %}STRING{% else %}{{ column.data_type }}{% endif %}{% if not loop.last %},{% endif %}
+      {% set col_type = column.data_type | default('STRING', true) %}
+      `{{ column.name }}` {% if col_type | lower == 'text' %}STRING{% else %}{{ col_type }}{% endif %}{% if persist_column_docs and column.description %} COMMENT '{{ column.description | replace("'", "''") }}'{% endif %}{% if not loop.last %},{% endif %}
     {%- endfor %}
   )
+  {% if relation_comment %} COMMENT '{{ relation_comment }}'{% endif %}
   with (
     {% for property_name in connector_properties %} '{{ property_name }}' = '{{ connector_properties[property_name] }}'{% if not loop.last %},{% endif %}
     {% endfor %}
@@ -57,6 +65,15 @@
   create {% if temporary: -%}temporary {%- endif %}table
     {{ this.render() }}
     {% if type %}/** mode('{{type}}')*/{% endif %}
+  {% if persist_column_docs and model_columns %}
+  (
+    {% for column in model_columns -%}
+      {% set col_type = column.data_type | default('STRING', true) %}
+      `{{ column.name }}` {% if col_type | lower == 'text' %}STRING{% else %}{{ col_type }}{% endif %}{% if column.description %} COMMENT '{{ column.description | replace("'", "''") }}'{% endif %}{% if not loop.last %},{% endif %}
+    {%- endfor %}
+  )
+  {% endif %}
+  {% if relation_comment %} COMMENT '{{ relation_comment }}'{% endif %}
   with (
     {% for property_name in connector_properties %} '{{ property_name }}' = '{{ connector_properties[property_name] }}'{% if not loop.last %},{% endif %}
     {% endfor %}
