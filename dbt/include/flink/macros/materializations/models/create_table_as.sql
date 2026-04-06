@@ -36,15 +36,17 @@
   {% if persist_relation_docs and model is defined and model.description %}
     {% set relation_comment = model.description | replace("'", "''") %}
   {% endif %}
+  {# Flink: quote table id with backticks (reserved words e.g. TREAT). Alias must be plain TREAT — no backticks in alias (drop hint also wraps). #}
+  {% set flink_backtick_table = '`' ~ (this.render() | replace('`', '``')) ~ '`' %}
 
   {{ sql_header if sql_header is not none }}
   /** upgrade_mode('{{upgrade_mode}}') */ /** job_state('{{job_state}}') */{% if statement_set_group is not none %} /** statement_set_group('{{statement_set_group}}') */ /** statement_set_leader('{{statement_set_leader}}') */{% endif %}
   {% if execution_config %}/** execution_config('{% for cfg_name in execution_config %}{{cfg_name}}={{execution_config[cfg_name]}}{% if not loop.last %};{% endif %}{% endfor %}') */{% endif %}
-  /** drop_statement('drop {% if temporary: -%}temporary {%- endif %}table if exists `{{ this.render() }}`') */
+  /** drop_statement('drop {% if temporary: -%}temporary {%- endif %}table if exists {{ flink_backtick_table }}') */
   {% if statement_set_group is not none %}
   /** statement_set_create */
   create {% if temporary: -%}temporary {%- endif %}table
-    {{ this.render() }}
+    {{ flink_backtick_table }}
     {% if type %}/** mode('{{type}}')*/{% endif %}
   (
     {% for column in model_columns -%}
@@ -58,12 +60,12 @@
     {% endfor %}
   );
   /** statement_set_insert */
-  insert into {{ this.render() }} (
+  insert into {{ flink_backtick_table }} (
     {{ sql }}
   );
   {% else %}
   create {% if temporary: -%}temporary {%- endif %}table
-    {{ this.render() }}
+    {{ flink_backtick_table }}
     {% if type %}/** mode('{{type}}')*/{% endif %}
   {% if persist_column_docs and model_columns %}
   (
